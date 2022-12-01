@@ -128,20 +128,25 @@ class dataloader():
 
     def get_sdata_tdx(self,file_path,start="2021/01/01",end='2021/01/31'):
         # 通达信数据
+        false = []
         if self.sdata is not None:
             return self.sdata
         else:
             self.sdata=pd.DataFrame()
             for i in tqdm(self.slist_used):
-                temp = pd.read_csv(file_path+i+'.csv',header=None)
-                temp['code'] = i
-                self.sdata = self.sdata.append(temp)
+                path = file_path+i+'.csv'
+                if not os.path.exists(path):
+                    false.append(i)
+                else:
+                    temp = pd.read_csv(file_path+i+'.csv',header=None)
+                    temp['code'] = i
+                    self.sdata = self.sdata.append(temp)
             self.sdata.columns = ['date','open','high','low','close','volume','amount','code']
             self.sdata.date = pd.to_datetime(self.sdata.date)
             self.sdata = self.sdata[(self.sdata.date>pd.to_datetime(start))&(self.sdata.date<pd.to_datetime(end))].reset_index(drop=True)
 
             self.sdata.set_index(['date','code'],inplace=True)
-
+            print('No data:',false)
             return self.sdata
             
 
