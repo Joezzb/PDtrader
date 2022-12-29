@@ -35,10 +35,6 @@ class dataloader():
         self.factor = []
         self.trade = {}
 
-        # 历史因子
-        self.index_hist_path = 'index.csv'
-        self.index_hist = None
-
     def get_slist(self,symbol='000300'):
         # 最新中正成分股（包含沪深300）
         if self.slist is not None:
@@ -55,20 +51,6 @@ class dataloader():
             self.slist.date = pd.to_datetime(self.slist.date)
             self.slist.to_csv(self.slist_path,index=False,encoding='gbk')
             self.slist_used = self.slist.code.values
-
-    def get_index_hist(self,symbol='000300'):
-        # 最新中正成分股（包含沪深300）
-        if self.index_hist is not None:
-            return self.index_hist
-        elif os.path.exists(self.index_hist_path):
-            # local file exist
-            self.index_hist = pd.read_csv(self.index_hist_path,encoding='gbk',dtype={'code':str})
-        else:
-            # extract info
-            self.index_hist = ak.index_zh_a_hist(symbol=symbol).iloc[:,:-4]
-            self.index_hist.columns = ['date','open','close','high','low','volume','amount']
-            self.index_hist.date = pd.to_datetime(self.index_hist.date)
-            self.index_hist.to_csv(self.index_hist_path,index=False,encoding='gbk')
     
     def get_slist_hist(self,symbol):
         # index_stock_hist is bad function, data is incomplete.
@@ -205,10 +187,6 @@ def ts_sum(x,n):
 def rank(x):
     return x.groupby(by='date').rank(pct=True)
 
-def ts_rank(x,n):
-    # keep multiindex
-    return x.groupby('code').rolling(n).apply(lambda x: rankdata(x)[-1]).set_axis(x.index)
-
 def stddev(x,n):
     return x.groupby(by='code').apply(lambda x: x.rolling(n).std())
 
@@ -218,25 +196,31 @@ def covariance(x,y,n):
 def correlation(x,y,n):
     return pd.concat([x,y],axis=1).reset_index(level=1).groupby(by='code').rolling(n).corr().unstack().iloc[:,-2].reorder_levels(['date','code'])
 
+def shift_ndate(x,n):
+    return x.groupby(by='code').shift(n)
+
+def ts_return(x,n):
+    return x.groupby(by='code').apply(lambda x: x-x.shift(n))
+
+def ts_rank(x,n):
+    # keep multiindex
+    return x.groupby('code').rolling(n).apply(lambda x: rankdata(x)[-1]).set_axis(x.index)
+
 def delta(x,n):
     return x-x.groupby('code').shift(n)
 
 def adv(x,n):
     return x.volume.groupby('code').apply(lambda x: x.rolling(n).mean())
-
-def shift_ndate(x,n):
-    return x.groupby(by='code').shift(n)
-
 #==============================================
 # Formula
 def alpha_6(data):
     return shift_ndate(-1*correlation(data.open,data.volume,10),1)
 
 def alpha_17(data):
-    return shift_ndate(-1*rank(ts_rank(data.close,10))*rank(delta(delta(data.close,1),1))*rank(ts_rank(data.volume/adv(data,20),5)),1)
+    return -1*rank(ts_rank(data.close,10))*rank(delta(delta(data.close,1),1))*rank(ts_rank(data.volume/adv(data,20),5))
 
 def momentum_nd(data,n):
-    return shift_ndate(delta(data.close,n),1)
+    return shift_ndate(ts_return(data.close,n),1)
 
 #==============================================
 def alphalens_fullsheet(x):

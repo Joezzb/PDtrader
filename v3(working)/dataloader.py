@@ -35,10 +35,6 @@ class dataloader():
         self.factor = []
         self.trade = {}
 
-        # 历史因子
-        self.index_hist_path = 'index.csv'
-        self.index_hist = None
-
     def get_slist(self,symbol='000300'):
         # 最新中正成分股（包含沪深300）
         if self.slist is not None:
@@ -55,20 +51,6 @@ class dataloader():
             self.slist.date = pd.to_datetime(self.slist.date)
             self.slist.to_csv(self.slist_path,index=False,encoding='gbk')
             self.slist_used = self.slist.code.values
-
-    def get_index_hist(self,symbol='000300'):
-        # 最新中正成分股（包含沪深300）
-        if self.index_hist is not None:
-            return self.index_hist
-        elif os.path.exists(self.index_hist_path):
-            # local file exist
-            self.index_hist = pd.read_csv(self.index_hist_path,encoding='gbk',dtype={'code':str})
-        else:
-            # extract info
-            self.index_hist = ak.index_zh_a_hist(symbol=symbol).iloc[:,:-4]
-            self.index_hist.columns = ['date','open','close','high','low','volume','amount']
-            self.index_hist.date = pd.to_datetime(self.index_hist.date)
-            self.index_hist.to_csv(self.index_hist_path,index=False,encoding='gbk')
     
     def get_slist_hist(self,symbol):
         # index_stock_hist is bad function, data is incomplete.
